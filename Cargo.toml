@@ -1,0 +1,11 @@
+[package]
+name = "rs-lib-bot"
+version = "0.1.0"
+authors = ["kiwiyou <kiwiyou.dev@gmail.com>"]
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+[dependencies]
+tbot = "0.6.5"
+tokio = { version = "0.2.22", features = ["macros"] }
+sentry = "0.20.1"
