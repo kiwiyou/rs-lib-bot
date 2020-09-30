@@ -1,0 +1,1 @@
+web: target/release/rs-lib-bot

@@ -49,6 +49,8 @@ notice = "warn"
 # output a note when they are encountered.
 ignore = [
     #"RUSTSEC-0000-0000",
+    # soundness issue in sized-chunks
+    "RUSTSEC-2020-0041",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories
@@ -58,7 +60,7 @@ ignore = [
 # * Medium - CVSS Score 4.0 - 6.9
 # * High - CVSS Score 7.0 - 8.9
 # * Critical - CVSS Score 9.0 - 10.0
-#severity-threshold = 
+#severity-threshold =
 
 # This section is considered when running `cargo deny check licenses`
 # More documentation for the licenses section can be found here:
@@ -169,14 +171,16 @@ deny = [
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
     #{ name = "ansi_term", version = "=0.11.0" },
+    { name = "wasi", version = "0.9.0" },
+    { name = "winapi", version = "0.2.8" },
+    { name = "base64", version = "0.12.3" },
 ]
-# Similarly to `skip` allows you to skip certain crates during duplicate 
-# detection. Unlike skip, it also includes the entire tree of transitive 
+# Similarly to `skip` allows you to skip certain crates during duplicate
+# detection. Unlike skip, it also includes the entire tree of transitive
 # dependencies starting at the specified crate, up to a certain depth, which is
 # by default infinite
 skip-tree = [
     #{ name = "ansi_term", version = "=0.11.0", depth = 20 },
-    { name = "mio", version = "0.6.20" },
 ]
 
 # This section is considered when running `cargo deny check sources`.
