@@ -9,3 +9,8 @@ license = "MIT/Apache-2.0"
 tbot = "0.6.5"
 tokio = { version = "0.2.22", features = ["macros"] }
 sentry = "0.20.1"
+anyhow = "1.0.32"
+sentry-anyhow = "0.20.1"
+reqwest = "0.10.8"
+log = "0.4.11"
+pretty_env_logger = "0.4.0"
