@@ -5,6 +5,9 @@ use reqwest::{Client, ClientBuilder};
 use tbot::contexts;
 use tbot::types as telegram;
 
+mod search;
+mod util;
+
 struct State {
     client: Client,
 }
@@ -49,79 +52,28 @@ async fn handle_inline_query(
 
     trace!("Inline Query: {}", query);
     let client = &state.client;
-    if crate_exists(client, query).await? {
+    if search::crate_exists(client, query).await? {
         info!("Valid Crate Query: {}", query);
-        let content = telegram::input_message_content::Text::new("It exists!");
-        let result = inline_query::Result::new(
-            "Your crate",
-            inline_query::result::Article::new(query, content),
-        );
+
+        let info = search::get_crate_info(client, query).await?;
+        let text = util::TextBuilder::new()
+            .text("", &info.name, "")
+            .text(" ", &info.newest_version, "")
+            .text_opt(" ", &info.license, " License")
+            .text_opt("\n", &info.description, "\n")
+            .text(
+                "\n",
+                info.recent_downloads.to_string(),
+                " download(s) recently",
+            )
+            .text(" (", info.downloads.to_string(), " total)")
+            .build();
+
+        let content = telegram::input_message_content::Text::new(&text);
+        let result =
+            inline_query::Result::new(query, inline_query::result::Article::new(query, content));
         context.answer(&[result]).call().await?;
     }
 
     Ok(())
-}
-
-async fn crate_exists(client: &Client, name: &str) -> anyhow::Result<bool> {
-    let name = name.to_ascii_lowercase();
-
-    let url = if name.len() <= 2 {
-        format!(
-            "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/{}/{}",
-            name.len(),
-            name
-        )
-    } else if name.len() == 3 {
-        format!(
-            "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/3/{}/{}",
-            &name[..1],
-            name
-        )
-    } else {
-        format!(
-            "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/{}/{}/{}",
-            &name[..2],
-            &name[2..4],
-            name
-        )
-    };
-
-    let response = client.head(&url).send().await?;
-    Ok(response.status().is_success())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn crate_exists_works() {
-        let client = Client::new();
-        let crates_and_existence = [
-            ("a", true),
-            ("at", true),
-            ("top", true),
-            ("surf", true),
-            ("tokio", true),
-            ("google-gamesconfiguration1_configuration-cli", true),
-            ("_", false),
-            ("a_", false),
-            ("b!g", false),
-            ("g0od", false),
-            ("q_e_d", false),
-            (
-                "this_crate_has_so_long_name_that_it_exceeds_64_letters_and_blocked_by_crates_io",
-                false,
-            ),
-        ];
-        for &(name, existence) in &crates_and_existence {
-            let name_upper = name.to_ascii_uppercase();
-
-            let result = crate_exists(&client, &name).await.ok();
-            let result_upper = crate_exists(&client, &name_upper).await.ok();
-
-            assert_eq!(Some(existence), result);
-            assert_eq!(Some(existence), result_upper);
-        }
-    }
 }
