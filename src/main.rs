@@ -74,7 +74,7 @@ async fn handle_inline_query(
         *no_crate_req_until = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
         drop(no_crate_req_until);
 
-        let description = info.description.map(|desc| desc.replace('\n', ""));
+        let description = info.description.map(|desc| desc.replace('\n', " "));
         let crate_size = info
             .crate_size
             .map(|size| size.file_size(file_size_opts::BINARY).unwrap());
