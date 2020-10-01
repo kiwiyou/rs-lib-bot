@@ -98,6 +98,9 @@ async fn handle_inline_query(
             .build();
 
         let mut buttons = Vec::new();
+        let docs = info
+            .documentation
+            .unwrap_or(format!("https://docs.rs/{}", query));
         {
             if let Some(homepage) = &info.homepage {
                 buttons.push(keyboard::Button::new(
@@ -105,7 +108,6 @@ async fn handle_inline_query(
                     keyboard::ButtonKind::Url(&homepage),
                 ));
             }
-            let docs = info.documentation.unwrap_or(format!("https://docs.rs/{}", query));
             buttons.push(keyboard::Button::new(
                 "📚 Docs",
                 keyboard::ButtonKind::Url(&docs),
