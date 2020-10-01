@@ -76,10 +76,18 @@ async fn handle_inline_query(
         let description = info.description.map(|s| escape_markdown(s.trim()));
         let text = util::TextBuilder::new()
             .text("📦 *", &escape_markdown(&info.name), "*")
-            .text(" _", &info.newest_version, "_")
-            .text_opt(", ", &info.license, " License")
-            .text_opt(" (", &crate_size, ")")
-            .text_opt("\n\n", &description, "\n")
+            .text(" _", &escape_markdown(&info.newest_version), "_")
+            .text_opt(
+                ", ",
+                &info.license.as_deref().map(escape_markdown),
+                " License",
+            )
+            .text_opt(" (", &crate_size.as_deref().map(escape_markdown), ")")
+            .text_opt(
+                "\n\n",
+                &description.as_deref().map(str::trim).map(escape_markdown),
+                "\n",
+            )
             .text(
                 "\n📥 All-Time ",
                 info.downloads.to_formatted_string(&Locale::en),
