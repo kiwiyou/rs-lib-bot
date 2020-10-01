@@ -1,5 +1,6 @@
 use std::{env, sync::Arc, time::Duration};
 
+use anyhow::Context;
 use log::*;
 use reqwest::{Client, ClientBuilder};
 use tbot::contexts;
@@ -30,7 +31,10 @@ async fn main() {
     let mut bot = tbot::Bot::new(token.clone()).stateful_event_loop(state);
 
     bot.inline(|context, state| async move {
-        if let Err(error) = handle_inline_query(context, state).await {
+        if let Err(error) = handle_inline_query(context.clone(), state)
+            .await
+            .with_context(|| format!("Update: {:?}", *context))
+        {
             sentry_anyhow::capture_anyhow(&error);
         }
     });
@@ -138,7 +142,13 @@ async fn handle_inline_query(
         let result =
             inline_query::Result::new(query, inline_query::result::Article::new(query, content))
                 .reply_markup(keyboard);
-        context.answer(&[result]).call().await?;
+        let results = vec![result];
+        let request = context.answer(&results);
+        request
+            .clone()
+            .call()
+            .await
+            .with_context(move || format!("Request: {:?}", request))?;
     }
 
     Ok(())
