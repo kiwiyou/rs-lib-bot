@@ -47,7 +47,12 @@ async fn handle_inline_query(
     context: Arc<contexts::Inline>,
     state: Arc<State>,
 ) -> anyhow::Result<()> {
+    use chrono_humanize::HumanTime;
+    use humansize::{file_size_opts, FileSize};
+    use num_format::{Locale, ToFormattedString};
     use telegram::inline_query;
+    use telegram::keyboard::inline as keyboard;
+    use util::escape_markdown;
     let query = &context.query;
 
     trace!("Inline Query: {}", query);
@@ -56,22 +61,65 @@ async fn handle_inline_query(
         info!("Valid Crate Query: {}", query);
 
         let info = search::get_crate_info(client, query).await?;
+        let crate_size = info
+            .crate_size
+            .map(|size| size.file_size(file_size_opts::BINARY).unwrap());
+        let description = info.description.map(|s| escape_markdown(s.trim()));
         let text = util::TextBuilder::new()
-            .text("", &info.name, "")
-            .text(" ", &info.newest_version, "")
-            .text_opt(" ", &info.license, " License")
-            .text_opt("\n", &info.description, "\n")
+            .text("📦 *", &escape_markdown(&info.name), "*")
+            .text(" _", &info.newest_version, "_")
+            .text_opt(", ", &info.license, " License")
+            .text_opt(" (", &crate_size, ")")
+            .text_opt("\n\n", &description, "\n")
             .text(
-                "\n",
-                info.recent_downloads.to_string(),
-                " download(s) recently",
+                "\n📥 All-Time ",
+                info.downloads.to_formatted_string(&Locale::en),
+                "",
             )
-            .text(" (", info.downloads.to_string(), " total)")
+            .text(
+                "\n📥 Recent ",
+                info.recent_downloads.to_formatted_string(&Locale::en),
+                "",
+            )
+            .text(
+                "🕒 Last Update ",
+                HumanTime::from(info.updated_at).to_string(),
+                "",
+            )
             .build();
 
-        let content = telegram::input_message_content::Text::new(&text);
+        let mut buttons = Vec::new();
+        {
+            if let Some(homepage) = &info.homepage {
+                buttons.push(keyboard::Button::new(
+                    "🏠 Home",
+                    keyboard::ButtonKind::Url(&homepage),
+                ));
+            }
+            if let Some(docs) = &info.documentation {
+                buttons.push(keyboard::Button::new(
+                    "📚 Docs",
+                    keyboard::ButtonKind::Url(&docs),
+                ));
+            }
+            if let Some(repo) = &info.repository {
+                buttons.push(keyboard::Button::new(
+                    "📂 Repo",
+                    keyboard::ButtonKind::Url(&repo),
+                ));
+            }
+        }
+        let mut container = Vec::new();
+        container.push(buttons.as_slice());
+        let keyboard = keyboard::Keyboard::new(&container);
+
+        let content = telegram::input_message_content::Text::new(
+            telegram::parameters::Text::markdown_v2(&text),
+        );
+
         let result =
-            inline_query::Result::new(query, inline_query::result::Article::new(query, content));
+            inline_query::Result::new(query, inline_query::result::Article::new(query, content))
+                .reply_markup(keyboard);
         context.answer(&[result]).call().await?;
     }
 

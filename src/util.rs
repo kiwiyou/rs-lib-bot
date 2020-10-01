@@ -28,3 +28,18 @@ impl TextBuilder {
         self.buffer
     }
 }
+
+const MARKDOWN_ESCAPES: [char; 18] = [
+    '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!',
+];
+
+pub fn escape_markdown(text: &str) -> String {
+    let mut buffer = String::with_capacity(text.len());
+    for letter in text.chars() {
+        if MARKDOWN_ESCAPES.contains(&letter) {
+            buffer.push('\\');
+        }
+        buffer.push(letter);
+    }
+    buffer
+}

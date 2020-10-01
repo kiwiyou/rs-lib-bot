@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use reqwest::Client;
 
 pub async fn crate_exists(client: &Client, name: &str) -> anyhow::Result<bool> {
@@ -32,7 +33,6 @@ pub async fn crate_exists(client: &Client, name: &str) -> anyhow::Result<bool> {
     Ok(response.status().is_success())
 }
 
-#[derive(serde::Deserialize)]
 pub struct CrateInfo {
     pub name: String,
     pub newest_version: String,
@@ -43,23 +43,80 @@ pub struct CrateInfo {
     pub recent_downloads: usize,
     pub repository: Option<String>,
     pub homepage: Option<String>,
+    pub documentation: Option<String>,
+    pub updated_at: DateTime<Utc>,
 }
 
 pub async fn get_crate_info(client: &Client, name: &str) -> anyhow::Result<CrateInfo> {
-    #[derive(serde::Deserialize)]
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
     struct CratesResponse {
         #[serde(rename = "crate")]
-        crate_info: CrateInfo,
+        crate_info: InternalCrateInfo,
+        versions: Vec<InternalVersionInfo>,
     }
 
-    let CratesResponse { crate_info }: CratesResponse = client
+    #[derive(Deserialize)]
+    struct InternalCrateInfo {
+        name: String,
+        newest_version: String,
+        crate_size: Option<usize>,
+        description: Option<String>,
+        downloads: usize,
+        recent_downloads: usize,
+        repository: Option<String>,
+        homepage: Option<String>,
+        documentation: Option<String>,
+        updated_at: DateTime<Utc>,
+    }
+
+    #[derive(Deserialize)]
+    struct InternalVersionInfo {
+        num: String,
+        license: Option<String>,
+    }
+
+    let CratesResponse {
+        crate_info:
+            InternalCrateInfo {
+                name,
+                newest_version,
+                crate_size,
+                description,
+                downloads,
+                recent_downloads,
+                repository,
+                homepage,
+                documentation,
+                updated_at,
+            },
+        versions,
+    }: CratesResponse = client
         .get(&format!("https://crates.io/api/v1/crates/{}", name))
         .send()
         .await?
         .json()
         .await?;
 
-    Ok(crate_info)
+    let license = versions
+        .into_iter()
+        .find(|version| version.num == newest_version)
+        .and_then(|version| version.license);
+
+    Ok(CrateInfo {
+        name,
+        newest_version,
+        license,
+        crate_size,
+        description,
+        downloads,
+        recent_downloads,
+        repository,
+        homepage,
+        documentation,
+        updated_at,
+    })
 }
 
 #[cfg(test)]
