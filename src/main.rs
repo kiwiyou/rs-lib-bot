@@ -15,9 +15,31 @@ struct State {
     no_crate_req_until: Mutex<Instant>,
 }
 
+#[cfg(feature = "error-report")]
+struct ErrorGuard {
+    _guard: sentry::ClientInitGuard,
+}
+
+#[cfg(feature = "error-report")]
+impl ErrorGuard {
+    fn init() -> Self {
+        Self {
+            _guard: sentry::init(env::var("SENTRY_DSN").unwrap())
+        }
+    }
+}
+
+#[cfg(not(feature = "error-report"))]
+struct ErrorGuard;
+
+#[cfg(not(feature = "error-report"))]
+impl ErrorGuard {
+    fn init() -> Self { Self }
+}
+
 #[tokio::main]
 async fn main() {
-    let _guard = sentry::init(env::var("SENTRY_DSN").unwrap());
+    let _guard = ErrorGuard::init();
     pretty_env_logger::init();
 
     let token = env::var("BOT_TOKEN").unwrap();
@@ -35,7 +57,9 @@ async fn main() {
             .await
             .with_context(|| format!("Update: {:#?}", *context))
         {
+            #[cfg(feature = "error-report")]
             sentry_anyhow::capture_anyhow(&error);
+            error!("{}", error);
         }
     });
 
