@@ -89,10 +89,7 @@ async fn handle_inline_query(
             .text_opt(" (", &crate_size.as_deref().map(escape_markdown), ")")
             .text_opt(
                 "\n\n",
-                &description
-                    .as_deref()
-                    .map(str::trim)
-                    .map(escape_markdown),
+                &description.as_deref().map(str::trim).map(escape_markdown),
                 "\n",
             )
             .text(
