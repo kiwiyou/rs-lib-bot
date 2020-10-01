@@ -1,15 +1,17 @@
-use std::{env, sync::Arc};
+use std::{env, sync::Arc, time::Duration};
 
 use log::*;
 use reqwest::{Client, ClientBuilder};
 use tbot::contexts;
 use tbot::types as telegram;
+use tokio::{sync::Mutex, time::Instant};
 
 mod search;
 mod util;
 
 struct State {
     client: Client,
+    no_crate_req_until: Mutex<Instant>,
 }
 
 #[tokio::main]
@@ -23,6 +25,7 @@ async fn main() {
             .user_agent("rs-lib-bot (kiwiyou.dev@gmail.com)")
             .build()
             .expect("Failed to create request client"),
+        no_crate_req_until: Mutex::new(Instant::now()),
     };
     let mut bot = tbot::Bot::new(token.clone()).stateful_event_loop(state);
 
@@ -55,12 +58,18 @@ async fn handle_inline_query(
     use util::escape_markdown;
     let query = &context.query;
 
-    trace!("Inline Query: {}", query);
+    debug!("Inline Query: {}", query);
     let client = &state.client;
     if search::crate_exists(client, query).await? {
         info!("Valid Crate Query: {}", query);
 
+        let mut no_crate_req_until = state.no_crate_req_until.lock().await;
+        tokio::time::delay_until(*no_crate_req_until).await;
+        debug!("Sent crates.io request for crate `{}`", query);
         let info = search::get_crate_info(client, query).await?;
+        *no_crate_req_until = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
+        drop(no_crate_req_until);
+
         let crate_size = info
             .crate_size
             .map(|size| size.file_size(file_size_opts::BINARY).unwrap());
