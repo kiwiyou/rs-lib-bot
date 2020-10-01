@@ -86,7 +86,7 @@ async fn handle_inline_query(
                 &info.license.as_deref().map(escape_markdown),
                 " License",
             )
-            .text_opt(" (", &crate_size.as_deref().map(escape_markdown), ")")
+            .text_opt(" \\(", &crate_size.as_deref().map(escape_markdown), "\\)")
             .text_opt(
                 "\n\n",
                 &description.as_deref().map(str::trim).map(escape_markdown),
