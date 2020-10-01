@@ -89,7 +89,7 @@ async fn handle_inline_query(
                 "\n",
             )
             .text(
-                "\n📥 All-Time ",
+                "\n📥 All\\-Time ",
                 info.downloads.to_formatted_string(&Locale::en),
                 "",
             )
