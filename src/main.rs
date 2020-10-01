@@ -74,6 +74,7 @@ async fn handle_inline_query(
         *no_crate_req_until = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
         drop(no_crate_req_until);
 
+        let description = info.description.map(|desc| desc.replace('\n', ""));
         let crate_size = info
             .crate_size
             .map(|size| size.file_size(file_size_opts::BINARY).unwrap());
@@ -88,8 +89,7 @@ async fn handle_inline_query(
             .text_opt(" (", &crate_size.as_deref().map(escape_markdown), ")")
             .text_opt(
                 "\n\n",
-                &info
-                    .description
+                &description
                     .as_deref()
                     .map(str::trim)
                     .map(escape_markdown),
