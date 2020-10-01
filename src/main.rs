@@ -106,7 +106,7 @@ async fn handle_inline_query(
                 "",
             )
             .text(
-                "🕒 Last Update ",
+                "\n🕒 Last Update ",
                 HumanTime::from(info.updated_at).to_string(),
                 "",
             )

@@ -61,7 +61,6 @@ pub async fn get_crate_info(client: &Client, name: &str) -> anyhow::Result<Crate
     struct InternalCrateInfo {
         name: String,
         newest_version: String,
-        crate_size: Option<usize>,
         description: Option<String>,
         downloads: usize,
         recent_downloads: usize,
@@ -75,6 +74,7 @@ pub async fn get_crate_info(client: &Client, name: &str) -> anyhow::Result<Crate
     struct InternalVersionInfo {
         num: String,
         license: Option<String>,
+        crate_size: Option<usize>,
     }
 
     let CratesResponse {
@@ -82,7 +82,6 @@ pub async fn get_crate_info(client: &Client, name: &str) -> anyhow::Result<Crate
             InternalCrateInfo {
                 name,
                 newest_version,
-                crate_size,
                 description,
                 downloads,
                 recent_downloads,
@@ -99,10 +98,11 @@ pub async fn get_crate_info(client: &Client, name: &str) -> anyhow::Result<Crate
         .json()
         .await?;
 
-    let license = versions
+    let (license, crate_size) = versions
         .into_iter()
         .find(|version| version.num == newest_version)
-        .and_then(|version| version.license);
+        .map(|version| (version.license, version.crate_size))
+        .unwrap_or((None, None));
 
     Ok(CrateInfo {
         name,
