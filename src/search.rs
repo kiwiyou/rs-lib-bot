@@ -1,6 +1,10 @@
 use reqwest::Client;
 
 pub async fn crate_exists(client: &Client, name: &str) -> anyhow::Result<bool> {
+    if name.len() > 64 || !name.is_ascii() {
+        return Ok(false);
+    }
+
     let name = name.to_ascii_lowercase();
 
     let url = if name.len() <= 2 {
@@ -77,6 +81,7 @@ mod test {
             ("b!g", false),
             ("g0od", false),
             ("q_e_d", false),
+            ("☑-not-an-ascii", false),
             (
                 "this_crate_has_so_long_name_that_it_exceeds_64_letters_and_blocked_by_crates_io",
                 false,
