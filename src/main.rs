@@ -77,7 +77,6 @@ async fn handle_inline_query(
         let crate_size = info
             .crate_size
             .map(|size| size.file_size(file_size_opts::BINARY).unwrap());
-        let description = info.description.map(|s| escape_markdown(s.trim()));
         let text = util::TextBuilder::new()
             .text("📦 *", &escape_markdown(&info.name), "*")
             .text(" _", &escape_markdown(&info.newest_version), "_")
@@ -89,7 +88,7 @@ async fn handle_inline_query(
             .text_opt(" (", &crate_size.as_deref().map(escape_markdown), ")")
             .text_opt(
                 "\n\n",
-                &description.as_deref().map(str::trim).map(escape_markdown),
+                &info.description.as_deref().map(str::trim).map(escape_markdown),
                 "\n",
             )
             .text(
