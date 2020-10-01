@@ -105,12 +105,11 @@ async fn handle_inline_query(
                     keyboard::ButtonKind::Url(&homepage),
                 ));
             }
-            if let Some(docs) = &info.documentation {
-                buttons.push(keyboard::Button::new(
-                    "📚 Docs",
-                    keyboard::ButtonKind::Url(&docs),
-                ));
-            }
+            let docs = info.documentation.unwrap_or(format!("https://docs.rs/{}", query));
+            buttons.push(keyboard::Button::new(
+                "📚 Docs",
+                keyboard::ButtonKind::Url(&docs),
+            ));
             if let Some(repo) = &info.repository {
                 buttons.push(keyboard::Button::new(
                     "📂 Repo",
