@@ -24,7 +24,7 @@ struct ErrorGuard {
 impl ErrorGuard {
     fn init() -> Self {
         Self {
-            _guard: sentry::init(env::var("SENTRY_DSN").unwrap())
+            _guard: sentry::init(env::var("SENTRY_DSN").unwrap()),
         }
     }
 }
@@ -34,7 +34,9 @@ struct ErrorGuard;
 
 #[cfg(not(feature = "error-report"))]
 impl ErrorGuard {
-    fn init() -> Self { Self }
+    fn init() -> Self {
+        Self
+    }
 }
 
 #[tokio::main]
