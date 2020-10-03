@@ -57,7 +57,7 @@ async fn main() {
     bot.inline(|context, state| async move {
         if let Err(error) = handle_inline_query(context.clone(), state)
             .await
-            .with_context(|| format!("Update: {:#?}", *context))
+            .with_context(|| format!("Error in inline query: {:#?}", *context))
         {
             #[cfg(feature = "error-report")]
             sentry_anyhow::capture_anyhow(&error);
@@ -174,7 +174,7 @@ async fn handle_inline_query(
             .clone()
             .call()
             .await
-            .with_context(move || format!("Request: {:#?}", request))?;
+            .with_context(move || format!("Error in request: {:#?}", request))?;
     }
 
     Ok(())
