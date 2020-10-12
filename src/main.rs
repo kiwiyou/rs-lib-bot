@@ -1,18 +1,17 @@
-use std::{env, sync::Arc, time::Duration};
+use std::{env, sync::Arc};
 
 use anyhow::Context;
 use log::*;
 use reqwest::{Client, ClientBuilder};
 use tbot::contexts;
 use tbot::types as telegram;
-use tokio::{sync::Mutex, time::Instant};
 
 mod search;
 mod util;
 
 struct State {
     client: Client,
-    no_crate_req_until: Mutex<Instant>,
+    search_url: String,
 }
 
 #[cfg(feature = "error-report")]
@@ -50,7 +49,7 @@ async fn main() {
             .user_agent("rs-lib-bot (kiwiyou.dev@gmail.com)")
             .build()
             .expect("Failed to create request client"),
-        no_crate_req_until: Mutex::new(Instant::now()),
+        search_url: env::var("SEARCH_URL").unwrap(),
     };
     let mut bot = tbot::Bot::new(token.clone()).stateful_event_loop(state);
 
@@ -87,26 +86,44 @@ async fn handle_inline_query(
     use telegram::keyboard::inline as keyboard;
     use util::escape_markdown;
     let query = &context.query;
+    if query.is_empty() {
+        return Ok(());
+    }
 
     debug!("Inline Query: {}", query);
     let client = &state.client;
-    if search::crate_exists(client, query).await? {
-        info!("Valid Crate Query: {}", query);
-
-        let mut no_crate_req_until = state.no_crate_req_until.lock().await;
-        tokio::time::delay_until(*no_crate_req_until).await;
-        debug!("Sent crates.io request for crate `{}`", query);
-        let info = search::get_crate_info(client, query).await?;
-        *no_crate_req_until = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
-        drop(no_crate_req_until);
-
+    if let Some(info) = search::search_crate(client, &state.search_url, query).await? {
         let description = info.description.map(|desc| desc.replace('\n', " "));
         let crate_size = info
             .crate_size
             .map(|size| size.file_size(file_size_opts::BINARY).unwrap());
+        let deps = {
+            let mut buffer = String::new();
+            if info.dev_dependencies > 0 {
+                buffer.push_str(&info.dev_dependencies.to_string());
+                buffer.push_str(" for dev");
+            }
+            if info.build_dependencies > 0 {
+                if !buffer.is_empty() {
+                    buffer.push_str(", ");
+                }
+                buffer.push_str(&info.build_dependencies.to_string());
+                buffer.push_str(" for build");
+            }
+            if buffer.is_empty() {
+                None
+            } else {
+                Some(buffer)
+            }
+        };
+        let dependency_label = if info.dependencies == 1 {
+            " Dependency"
+        } else {
+            " Dependencies"
+        };
         let text = util::TextBuilder::new()
-            .text("📦 *", &escape_markdown(&info.name), "*")
-            .text(" _", &escape_markdown(&info.newest_version), "_")
+            .text("📦 *", &escape_markdown(query), "*")
+            .text(" _", &escape_markdown(&info.version), "_")
             .text_opt(
                 ", ",
                 &info.license.as_deref().map(escape_markdown),
@@ -124,15 +141,12 @@ async fn handle_inline_query(
                 "",
             )
             .text(
-                "\n📥 Recent ",
-                info.recent_downloads.to_formatted_string(&Locale::en),
-                "",
-            )
-            .text(
                 "\n🕒 Last Update ",
                 HumanTime::from(info.updated_at).to_string(),
                 "",
             )
+            .text("\n📊 ", info.dependencies.to_string(), dependency_label)
+            .text_opt(" \\(", &deps, "\\)")
             .build();
 
         let mut buttons = Vec::new();

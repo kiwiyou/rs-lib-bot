@@ -1,157 +1,34 @@
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 
-pub async fn crate_exists(client: &Client, name: &str) -> anyhow::Result<bool> {
-    if name.len() > 64 || !name.is_ascii() {
-        return Ok(false);
-    }
-
-    let name = name.to_ascii_lowercase();
-
-    let url = if name.len() <= 2 {
-        format!(
-            "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/{}/{}",
-            name.len(),
-            name
-        )
-    } else if name.len() == 3 {
-        format!(
-            "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/3/{}/{}",
-            &name[..1],
-            name
-        )
-    } else {
-        format!(
-            "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/{}/{}/{}",
-            &name[..2],
-            &name[2..4],
-            name
-        )
-    };
-
-    let response = client.head(&url).send().await?;
-    Ok(response.status().is_success())
-}
-
+#[derive(serde::Deserialize)]
 pub struct CrateInfo {
-    pub name: String,
-    pub newest_version: String,
-    pub crate_size: Option<usize>,
-    pub license: Option<String>,
+    pub version: String,
     pub description: Option<String>,
     pub downloads: usize,
-    pub recent_downloads: usize,
+    pub license: Option<String>,
+    pub crate_size: Option<usize>,
     pub repository: Option<String>,
-    pub homepage: Option<String>,
     pub documentation: Option<String>,
+    pub homepage: Option<String>,
     pub updated_at: DateTime<Utc>,
+    pub dependencies: usize,
+    pub dev_dependencies: usize,
+    pub build_dependencies: usize,
 }
 
-pub async fn get_crate_info(client: &Client, name: &str) -> anyhow::Result<CrateInfo> {
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    struct CratesResponse {
-        #[serde(rename = "crate")]
-        crate_info: InternalCrateInfo,
-        versions: Vec<InternalVersionInfo>,
-    }
-
-    #[derive(Deserialize)]
-    struct InternalCrateInfo {
-        name: String,
-        newest_version: String,
-        description: Option<String>,
-        downloads: usize,
-        recent_downloads: usize,
-        repository: Option<String>,
-        homepage: Option<String>,
-        documentation: Option<String>,
-        updated_at: DateTime<Utc>,
-    }
-
-    #[derive(Deserialize)]
-    struct InternalVersionInfo {
-        num: String,
-        license: Option<String>,
-        crate_size: Option<usize>,
-    }
-
-    let CratesResponse {
-        crate_info:
-            InternalCrateInfo {
-                name,
-                newest_version,
-                description,
-                downloads,
-                recent_downloads,
-                repository,
-                homepage,
-                documentation,
-                updated_at,
-            },
-        versions,
-    }: CratesResponse = client
-        .get(&format!("https://crates.io/api/v1/crates/{}", name))
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    let (license, crate_size) = versions
-        .into_iter()
-        .find(|version| version.num == newest_version)
-        .map(|version| (version.license, version.crate_size))
-        .unwrap_or((None, None));
-
-    Ok(CrateInfo {
-        name,
-        newest_version,
-        license,
-        crate_size,
-        description,
-        downloads,
-        recent_downloads,
-        repository,
-        homepage,
-        documentation,
-        updated_at,
-    })
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn crate_exists_works() {
-        let client = Client::new();
-        let crates_and_existence = [
-            ("a", true),
-            ("at", true),
-            ("top", true),
-            ("surf", true),
-            ("tokio", true),
-            ("google-gamesconfiguration1_configuration-cli", true),
-            ("_", false),
-            ("a_", false),
-            ("b!g", false),
-            ("g0od", false),
-            ("q_e_d", false),
-            ("☑-not-an-ascii", false),
-            (
-                "this_crate_has_so_long_name_that_it_exceeds_64_letters_and_blocked_by_crates_io",
-                false,
-            ),
-        ];
-        for &(name, existence) in &crates_and_existence {
-            let name_upper = name.to_ascii_uppercase();
-
-            let result = crate_exists(&client, &name).await.ok();
-            let result_upper = crate_exists(&client, &name_upper).await.ok();
-
-            assert_eq!(Some(existence), result);
-            assert_eq!(Some(existence), result_upper);
-        }
+// Use kiwiyou/crate-search-cache due to crate.io ratelimit
+pub async fn search_crate(
+    client: &Client,
+    search_url: &str,
+    name: &str,
+) -> anyhow::Result<Option<CrateInfo>> {
+    let url = format!("{}/{}", search_url, name);
+    let response = client.get(&url).send().await?;
+    if response.status().is_client_error() {
+        Ok(None)
+    } else {
+        let result = response.json().await?;
+        Ok(Some(result))
     }
 }
