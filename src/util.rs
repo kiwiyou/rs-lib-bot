@@ -43,3 +43,27 @@ pub fn escape_markdown(text: &str) -> String {
     }
     buffer
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn text_builder_works() {
+        let text = TextBuilder::new()
+            .text("prefix", "text", "suffix")
+            .text_opt("prefix", &Some("text"), "suffix")
+            .text_opt("prefix", &None as &Option<String>, "suffix")
+            .build();
+        assert_eq!("prefixtextsuffixprefixtextsuffix", text);
+    }
+
+    #[test]
+    fn escape_works() {
+        let escaped = escape_markdown("a_b*c[d]e(f)g~h`i>j#k+l-m=n|o{p}q.r!s");
+        assert_eq!(
+            r#"a\_b\*c\[d\]e\(f\)g\~h\`i\>j\#k\+l\-m\=n\|o\{p\}q\.r\!s"#,
+            escaped
+        );
+    }
+}
