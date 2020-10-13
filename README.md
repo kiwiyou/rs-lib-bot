@@ -30,6 +30,7 @@ Before starting, you need several things:
 - Telegram bot token, which you can get by talking to [@BotFather](https://t.me/BotFather)
 - Public server to run https webhook service for the bot.
   - You can use [ngrok](https://ngrok.com/) in case you are just testing/debugging/etc.
+- Running instance of [crate-search-cache](https://github.com/kiwiyou/crate-search-cache)
 - Client key for your Sentry project. (optional)
 
 Once you are ready, clone the repository.
@@ -45,6 +46,7 @@ Then, set environment variables as follows:
 export BOT_TOKEN="123456789:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export PORT="8080" # port to bind server on
 export WEBHOOK_URL="https://your.public.server" # IMPORTANT: without trailing slash
+export SEARCH_URL="https://your.cache.server" # IMPORTANT: without trailing slash
 export SENTRY_DSN="https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ingest.sentry.io/1234567" # optional
 ```
 
